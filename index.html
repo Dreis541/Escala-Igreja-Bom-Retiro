@@ -7,53 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/papaparse/papaparse.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         .tab-active { border-bottom: 4px solid #1e3a8a; color: #1e3a8a; font-weight: 700; }
-        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
     </style>
 </head>
 <body class="pb-10">
-
     <header class="bg-[#1e3a8a] text-white py-6 px-4 text-center shadow-lg">
         <h1 class="text-2xl font-bold uppercase tracking-wider">Escala Bom Retiro</h1>
         <p class="text-blue-200 text-sm mt-1">Organização de Atividades</p>
     </header>
 
-    <nav class="flex bg-white shadow-sm sticky top-0 z-10">
-        <button onclick="switchTab('saturday')" id="tab-saturday" class="flex-1 py-4 text-gray-500 transition-all tab-active">
-            <i class="fas fa-calendar-day mr-2"></i>SÁBADOS
-        </button>
-        <button onclick="switchTab('sunday')" id="tab-sunday" class="flex-1 py-4 text-gray-500 transition-all">
-            <i class="fas fa-church mr-2"></i>DOMINGOS
-        </button>
+    <nav class="flex bg-white shadow-sm sticky top-0 z-10 text-sm">
+        <button onclick="switchTab('saturday')" id="tab-saturday" class="flex-1 py-4 tab-active">SÁBADOS</button>
+        <button onclick="switchTab('sunday')" id="tab-sunday" class="flex-1 py-4 text-gray-500">DOMINGOS</button>
     </nav>
 
-    <main id="app-content" class="max-w-md mx-auto mt-6 px-4">
-        <div id="loader" class="text-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900 mx-auto"></div>
-            <p class="mt-4 text-gray-600">Sincronizando escala...</p>
-        </div>
+    <main class="max-w-md mx-auto mt-6 px-4">
+        <div id="loader" class="text-center py-10"><div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900 mx-auto"></div></div>
         <div id="cards-container" class="space-y-6"></div>
     </main>
 
     <script>
-        // --- CONFIGURAÇÃO DO USUÁRIO ---
-        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLqbLJ6Yu4pnndPZYW8GAi2M3ji569gTCVXvHcZnpEZofRXqpz_1BMrOrGSLt9yiKkugPChdFEYsFO/pub?gid=1379906472&single=true&output=csv"; 
-        const ADMIN_PHONE = "5519998745605"; // Seu número com DDD (ex: 5511...)
-        // ------------------------------
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLqbLJ6Yu4pnndPZYW8GAi2M3ji569gTCVXvHcZnpEZofRXqpz_1BMrOrGSLt9yiKk_M799I-oHjC0/pub?gid=1379906414&output=csv"; 
+        const ADMIN_PHONE = "55119998745605"; 
 
         let currentTab = 'saturday';
         let fullData = [];
 
         async function init() {
-            if (SHEET_URL.includes("COLE_AQUI")) {
-                document.getElementById('app-content').innerHTML = `<div class="p-4 bg-yellow-100 text-yellow-800 rounded">Atenção: Você precisa inserir o link do Google Sheets no código.</div>`;
-                return;
-            }
-
             Papa.parse(SHEET_URL, {
                 download: true,
                 header: true,
@@ -61,18 +44,14 @@
                 complete: (results) => {
                     fullData = results.data;
                     renderScale();
-                },
-                error: (err) => {
-                    console.error(err);
-                    document.getElementById('app-content').innerHTML = `<div class="p-4 bg-red-100 text-red-800 rounded">Erro ao ler planilha. Verifique se ela foi "Publicada na Web" como CSV.</div>`;
                 }
             });
         }
 
         function switchTab(tab) {
             currentTab = tab;
-            document.getElementById('tab-saturday').classList.toggle('tab-active', tab === 'saturday');
-            document.getElementById('tab-sunday').classList.toggle('tab-active', tab === 'sunday');
+            document.getElementById('tab-saturday').className = tab === 'saturday' ? 'flex-1 py-4 tab-active' : 'flex-1 py-4 text-gray-500';
+            document.getElementById('tab-sunday').className = tab === 'sunday' ? 'flex-1 py-4 tab-active' : 'flex-1 py-4 text-gray-500';
             renderScale();
         }
 
@@ -80,15 +59,16 @@
             const container = document.getElementById('cards-container');
             document.getElementById('loader').style.display = 'none';
             container.innerHTML = '';
-
-            const allDates = Object.keys(fullData[0] || {}).filter(k => k !== "Função" && k.trim() !== "");
+            
+            // Filtra apenas as chaves que são datas reais (ignora "Função")
+            const allKeys = Object.keys(fullData[0] || {});
+            const allDates = allKeys.filter(k => k.includes("/"));
 
             allDates.forEach(dateStr => {
-                const parts = dateStr.split("/");
-                const dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-                const dayOfWeek = dateObj.getDay(); // 0=Dom, 6=Sáb
-
-                if ((currentTab === 'saturday' && dayOfWeek === 6) || (currentTab === 'sunday' && dayOfWeek === 0)) {
+                const p = dateStr.split("/");
+                const dateObj = new Date(p[2], p[1]-1, p[0]);
+                const day = dateObj.getDay(); 
+                if ((currentTab === 'saturday' && day === 6) || (currentTab === 'sunday' && day === 0)) {
                     container.appendChild(createCard(dateStr, currentTab));
                 }
             });
@@ -96,46 +76,33 @@
 
         function createCard(date, type) {
             const div = document.createElement('div');
-            div.className = "bg-white rounded-xl overflow-hidden card-shadow border border-gray-100";
-            const headerColor = type === 'saturday' ? 'bg-blue-800' : 'bg-blue-600';
-            const infoText = type === 'saturday' ? 'EB 09h | Culto 10h30' : 'Culto 19h00';
-
+            div.className = "bg-white rounded-xl overflow-hidden shadow-md border border-gray-100";
             let rowsHtml = '';
-            fullData.forEach(row => {
-                const funcao = row["Função"];
-                const voluntario = row[date] || "A definir";
-                if (type === 'sunday' && funcao === "Escola Bíblica") return;
-
-                rowsHtml += `
-                    <div class="flex items-center justify-between p-4 border-b last:border-0 hover:bg-gray-50">
-                        <div class="flex-1">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">${funcao}</p>
-                            <p class="text-gray-800 font-semibold leading-tight">${voluntario}</p>
-                        </div>
-                        <button onclick="confirmar('${voluntario}', '${funcao}', '${date}')" 
-                                class="ml-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-green-200 hover:bg-green-100 whitespace-nowrap">
-                            CONFIRMAR <i class="fab fa-whatsapp ml-1"></i>
-                        </button>
-                    </div>`;
+            
+            // Usamos as 5 primeiras linhas (Recepção até Escala Pastoral)
+            fullData.slice(0, 5).forEach(row => {
+                const f = row["Função"];
+                const v = row[date] || "A definir";
+                if (type === 'sunday' && f === "Escola Bíblica") return;
+                
+                rowsHtml += `<div class="flex items-center justify-between p-4 border-b last:border-0 text-sm">
+                    <div><p class="text-[10px] text-gray-400 font-bold uppercase">${f}</p><p class="font-semibold text-gray-800">${v}</p></div>
+                    <button onclick="confirmar('${v}','${f}','${date}')" class="text-green-600 p-2"><i class="fab fa-whatsapp text-lg"></i></button>
+                </div>`;
             });
-
-            div.innerHTML = `
-                <div class="${headerColor} p-4 text-white">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-bold">${date}</h2>
-                        <span class="text-[10px] bg-white/20 px-2 py-1 rounded uppercase font-bold">${infoText}</span>
-                    </div>
-                </div>
-                <div>${rowsHtml}</div>`;
+            
+            div.innerHTML = `<div class="${type==='saturday'?'bg-blue-800':'bg-blue-600'} p-3 text-white font-bold flex justify-between">
+                <span>${date}</span>
+                <span class="text-[10px] opacity-75 uppercase">${type==='saturday'?'Sábado':'Domingo'}</span>
+            </div><div>${rowsHtml}</div>`;
             return div;
         }
 
-        function confirmar(nome, funcao, data) {
-            if (nome === "A definir") return;
-            const msg = `Olá! Sou o(a) ${nome} e confirmo minha escala para a função de ${funcao} no dia ${data} na Igreja Bom Retiro.`;
-            window.open(`https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+        function confirmar(n, f, d) {
+            if (n === "A definir") return;
+            const msg = window.encodeURIComponent(`Olá! Confirmo minha escala: ${f} em ${d}.`);
+            window.open(`https://wa.me/${ADMIN_PHONE}?text=${msg}`, '_blank');
         }
-
         init();
     </script>
 </body>
